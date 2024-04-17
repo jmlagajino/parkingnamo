@@ -1,6 +1,4 @@
 <?php
-// Assume $pdo is already defined in your configuration file
-
 function register($pdo){
     $required_fields = ['first_name', 'last_name', 'plate', 'phone', 'pin'];
     $errors = [];
@@ -49,6 +47,67 @@ function register($pdo){
     echo json_encode($response);
 }
 
-// Call the register function with the existing $pdo object
-register($pdo);
+
+function login($pdo){
+    $required_fields = ['plate', 'pin'];
+    $errors = [];
+
+    foreach ($required_fields as $field) {
+        if (empty($_POST[$field])) {
+            $errors[$field] = ucfirst($field) . ' is required';
+        }
+    }
+
+    // Validate PIN format
+    if (!empty($_POST['pin'])) {
+        if (!ctype_digit($_POST['pin'])) {
+            $errors['pin'] = 'PIN must contain only numbers';
+        } elseif (strlen($_POST['pin']) !== 4) {
+            $errors['pin'] = 'PIN must be exactly 4 digits';
+        }
+    }
+
+    if (empty($errors)) {
+        $plate = $_POST['plate'];
+        $pin = $_POST['pin'];
+
+        // Validate plate and pin format if needed
+        // Example: Check if plate number exists and is associated with the correct pin
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE plate = ?");
+        $stmt->execute([$plate]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user && $pin == $user['pin']) {
+            if ($user['user_type'] === 'admin') {
+                $response = [
+                    'success' => true,
+                    'user_type' => $user['user_type'],
+                    'first_name' => $user['first_name'],
+                    'last_name' => $user['last_name'],
+                    'plate' => $user['plate']
+                ];
+                echo json_encode($response);
+                die();
+            } else if ($user['user_type'] === 'user') {
+                $response = [
+                    'success' => true,
+                    'user_type' => $user['user_type'],
+                    'first_name' => $user['first_name'],
+                    'last_name' => $user['last_name'],
+                    'plate' => $user['plate']
+                ];
+                echo json_encode($response);
+                die();
+            } else {
+                $response = ['success' => true, 'message' => 'Login successful'];
+            }
+        } else {
+            $response = ['success' => false, 'errors' => ['login' => 'Invalid plate number or PIN']];
+        }
+    } else {
+        $response = ['success' => false, 'errors' => $errors];
+    }
+
+    echo json_encode($response);
+}
 ?>
