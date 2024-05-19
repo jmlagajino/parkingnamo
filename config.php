@@ -1,7 +1,7 @@
 <?php
 // Database credentials
 $host = 'localhost'; // Or the IP address of your database server
-$dbname = 'parkingnamo';
+$dbname = 'test';
 $username = 'root';
 $password = '';
 
@@ -16,4 +16,3 @@ try {
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
 }
-?>

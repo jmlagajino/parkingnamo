@@ -19,6 +19,90 @@
 //     echo json_encode($response);
 // }
 
+// Function to get all data from the balance table
+function transaction_data($pdo) {
+    try {
+        // Prepare and execute the SQL statement to select all data from the balance table
+        $stmt = $pdo->prepare("SELECT * FROM balance");
+        $stmt->execute();
+        $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Prepare the response
+        $response = ['success' => true, 'transactions' => $transactions];
+    } catch (PDOException $e) {
+        // Handle potential exceptions
+        $response = ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+    }
+
+    // Return the JSON response
+    echo json_encode($response);
+}
+
+// Function to get all users' balances
+function get_all_balances($pdo) {
+    try {
+        // Prepare and execute the SQL statement
+        $stmt = $pdo->prepare("SELECT id, balance FROM parkings");
+        $stmt->execute();
+        $balances = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Prepare the response
+        $response = ['success' => true, 'balances' => $balances];
+    } catch (PDOException $e) {
+        // Handle potential exceptions
+        $response = ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+    }
+
+    // Return the JSON response
+    echo json_encode($response);
+}
+
+// Function to get the total sales for the current month
+function current_month_sales($pdo) {
+    try {
+        // Prepare and execute the SQL statement
+        $stmt = $pdo->prepare("
+            SELECT SUM(paid) as total_sales_month 
+            FROM parkings 
+            WHERE MONTH(time_out) = MONTH(CURDATE()) 
+              AND YEAR(time_out) = YEAR(CURDATE())
+        ");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Check if result is null and set it to 0 if necessary
+        $total_sales_month = $result['total_sales_month'] ?? 0;
+
+        $response = ['success' => true, 'total_sales_month' => $total_sales_month];
+    } catch (PDOException $e) {
+        // Handle potential exceptions
+        $response = ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+    }
+
+    echo json_encode($response);
+}
+
+
+// Function to get the history of parking for a given plate number
+function get_history($pdo, $plate) {
+    if (!empty($plate)) {
+        // Prepare and execute the SQL statement
+        $stmt = $pdo->prepare("SELECT * FROM parkings WHERE plate = ? ORDER BY time_in DESC");
+        $stmt->execute([$plate]);
+        $parkingHistory = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($parkingHistory) {
+            $response = ['success' => true, 'parking_history' => $parkingHistory];
+        } else {
+            $response = ['success' => false, 'message' => 'No parking history found for this plate'];
+        }
+    } else {
+        $response = ['success' => false, 'errors' => ['plate' => 'Plate number is required']];
+    }
+
+    echo json_encode($response);
+}
+
 function dashboard($pdo) {
     // Fetch total cars registered
     $stmt = $pdo->prepare("SELECT COUNT(*) as total_cars FROM users WHERE user_type = 'user'");
@@ -31,12 +115,12 @@ function dashboard($pdo) {
     $total_parkings = $stmt->fetch(PDO::FETCH_ASSOC);
 
     // Fetch total sales in current month
-    $stmt = $pdo->prepare("SELECT SUM(paid) as total_sales_month FROM parkings WHERE MONTH(time_in) = MONTH(CURDATE()) AND YEAR(time_in) = YEAR(CURDATE())");
+    $stmt = $pdo->prepare("SELECT COALESCE(SUM(paid), 0) as total_sales_month FROM parkings WHERE MONTH(time_in) = MONTH(CURDATE()) AND YEAR(time_in) = YEAR(CURDATE())");
     $stmt->execute();
     $total_sales_month = $stmt->fetch(PDO::FETCH_ASSOC);
 
     // Fetch profit today
-    $stmt = $pdo->prepare("SELECT SUM(paid) as profit_today FROM parkings WHERE DATE(time_in) = CURDATE()");
+    $stmt = $pdo->prepare("SELECT COALESCE(SUM(paid), 0) as profit_today FROM parkings WHERE DATE(time_in) = CURDATE()");
     $stmt->execute();
     $profit_today = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -46,7 +130,7 @@ function dashboard($pdo) {
     $total_parkings_year = $stmt->fetch(PDO::FETCH_ASSOC);
 
     // Fetch monthly sales data
-    $stmt = $pdo->prepare("SELECT MONTH(time_in) as month, SUM(paid) as monthly_sales FROM parkings WHERE YEAR(time_in) = YEAR(CURDATE()) GROUP BY MONTH(time_in)");
+    $stmt = $pdo->prepare("SELECT MONTH(time_in) as month, COALESCE(SUM(paid), 0) as monthly_sales FROM parkings WHERE YEAR(time_in) = YEAR(CURDATE()) GROUP BY MONTH(time_in)");
     $stmt->execute();
     $monthly_sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -117,4 +201,7 @@ function dashboard($pdo) {
 }
 
 
+
+
 ?>
+
