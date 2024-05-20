@@ -22,8 +22,12 @@ if ($endpoint === 'register') {
     get_history($pdo, $plate);
 } elseif ($endpoint === 'api/get_all_balances') {
     echo get_all_balances($pdo);
-} elseif ($endpoint === 'api/transaction_data') { // New endpoint for transaction data
+} elseif ($endpoint === 'api/transaction_data') { // Endpoint for transaction data
     transaction_data($pdo); // Call the function to fetch and display data
+} elseif ($endpoint === 'api/get_all_parkings') { // Endpoint for all parkings
+    get_all_parkings($pdo); // Call the function to fetch and display data
+}  elseif ($endpoint === 'api/get_all_customers') { // New endpoint for all customers
+    get_all_customers($pdo); // Call the function to fetch and display data
 } else {
     echo json_encode(['success' => false, 'message' => 'Invalid endpoint']);
 }

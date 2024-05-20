@@ -19,6 +19,46 @@
 //     echo json_encode($response);
 // }
 
+// Function to get all data from the users table where user_type is 'user'
+function get_all_customers($pdo) {
+    try {
+        // Prepare and execute the SQL statement to select all data from the users table where user_type is 'user'
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE user_type = 'user'");
+        $stmt->execute();
+        $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Prepare the response
+        $response = ['success' => true, 'customers' => $customers];
+    } catch (PDOException $e) {
+        // Handle potential exceptions
+        $response = ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+    }
+
+    // Return the JSON response
+    echo json_encode($response);
+}
+
+
+// Function to get all data from the parkings table
+function get_all_parkings($pdo) {
+    try {
+        // Prepare and execute the SQL statement to select all data from the parkings table
+        $stmt = $pdo->prepare("SELECT * FROM parkings");
+        $stmt->execute();
+        $parkings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Prepare the response
+        $response = ['success' => true, 'parkings' => $parkings];
+    } catch (PDOException $e) {
+        // Handle potential exceptions
+        $response = ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+    }
+
+    // Return the JSON response
+    echo json_encode($response);
+}
+
+
 // Function to get all data from the balance table
 function transaction_data($pdo) {
     try {
@@ -55,6 +95,28 @@ function get_all_balances($pdo) {
 
     // Return the JSON response
     echo json_encode($response);
+}
+
+// Function to get the total sales for the current year
+function get_current_year_sales($pdo) {
+    try {
+        // Prepare and execute the SQL statement
+        $stmt = $pdo->prepare("
+            SELECT COALESCE(SUM(paid), 0) as total_sales_year 
+            FROM parkings 
+            WHERE YEAR(time_in) = YEAR(CURDATE())
+        ");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Check if result is null and set it to 0 if necessary
+        $total_sales_year = $result['total_sales_year'] ?? 0;
+
+        return $total_sales_year;
+    } catch (PDOException $e) {
+        // Handle potential exceptions
+        return 0;
+    }
 }
 
 // Function to get the total sales for the current month
@@ -115,9 +177,9 @@ function dashboard($pdo) {
     $total_parkings = $stmt->fetch(PDO::FETCH_ASSOC);
 
     // Fetch total sales in current month
-    $stmt = $pdo->prepare("SELECT COALESCE(SUM(paid), 0) as total_sales_month FROM parkings WHERE MONTH(time_in) = MONTH(CURDATE()) AND YEAR(time_in) = YEAR(CURDATE())");
+    $stmt = $pdo->prepare("SELECT COALESCE(SUM(paid), 0) as this_month_sales FROM parkings WHERE MONTH(time_in) = MONTH(CURDATE()) AND YEAR(time_in) = YEAR(CURDATE())");
     $stmt->execute();
-    $total_sales_month = $stmt->fetch(PDO::FETCH_ASSOC);
+    $this_month_sales = $stmt->fetch(PDO::FETCH_ASSOC);
 
     // Fetch profit today
     $stmt = $pdo->prepare("SELECT COALESCE(SUM(paid), 0) as profit_today FROM parkings WHERE DATE(time_in) = CURDATE()");
@@ -138,6 +200,14 @@ function dashboard($pdo) {
     $stmt = $pdo->prepare("SELECT MONTH(time_in) as month, COUNT(*) as parkings_count FROM parkings WHERE YEAR(time_in) = YEAR(CURDATE()) GROUP BY MONTH(time_in)");
     $stmt->execute();
     $monthly_parkings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Fetch overall parkings count
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total_parkings_overall FROM parkings");
+    $stmt->execute();
+    $total_parkings_overall = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Get total sales for the current year
+    $total_sales_current_year = get_current_year_sales($pdo);
 
     // Map month numbers to month names
     $month_names = [
@@ -189,9 +259,11 @@ function dashboard($pdo) {
         'success' => true,
         'total_cars_registered' => $total_cars['total_cars'],
         'total_parkings_today' => $total_parkings['total_parkings'],
-        'total_sales' => $total_sales_month['total_sales_month'],
+        'this_month_sales' => $this_month_sales['this_month_sales'],
         'profit_today' => $profit_today['profit_today'],
         'total_parkings_year' => $total_parkings_year['total_parkings_year'],
+        'total_parkings_overall' => $total_parkings_overall['total_parkings_overall'],
+        'total_sales_current_year' => $total_sales_current_year,
         'yearly_sales' => $monthly_sales_data,
         'yearly_parkings' => $monthly_parkings_data,
         'all_parkings' => $all_parkings
